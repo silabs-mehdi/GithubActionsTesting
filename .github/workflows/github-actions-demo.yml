@@ -15,13 +15,27 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '17'
-      - name: verify java
+      - name: Verify java
         run: |
-          set -e
+          set -euo pipefail
           java -version
           echo "JAVA_HOME=$JAVA_HOME"
           which java
           readlink -f "$(which java)"
+      - name: Download and install SLC-CLI
+        run: |
+          set -euo pipefail
+          curl --location --silent --show-error --output /tmp/slc.zip "https://www.silabs.com/documents/public/software/slc_cli_linux.zip"
+          unzip -q -d /opt/ /tmp/slc.zip
+          chmod +x /opt/slc_cli/slc
+          echo "/opt/slc_cli" >> "$GITHUB_PATH"
+      - name: Verify SLC CLI installation
+        run: |
+          set -euo pipefail
+          which slc
+          echo "SLC CLI version $(slc --version)"
+          
+
 
 
 
