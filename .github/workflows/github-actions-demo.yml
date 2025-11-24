@@ -6,9 +6,11 @@ on:
       - workflow/test
 
 jobs:
-  test_java_job:
+  Setup-tools-job:
+    env:
+      ARM_GCC_DIR: /opt/arm-toolchain
     name: test java setup
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04 # Runner info https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
     steps:
       - name: Setup java
         uses: actions/setup-java@v5 # At Least a JRE version 17 is needed to run SLC-CLI (corretto is recommended in docs)
@@ -34,6 +36,20 @@ jobs:
           set -euo pipefail
           which slc
           echo "SLC CLI version $(slc --version)"
+      - name: Install toolchain #Arm GNU Toolchain 12.2.rel1-x86_64-arm-none-eabi
+        run: |
+          set -euo pipefail
+          mkdir -p $ARM_GCC_DIR
+          curl --location --silent --show-error --output /tmp/gcc.tar.xz "https://developer.arm.com/-/media/files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz?rev=7bd049b7a3034e64885fa1a71c12f91d&revision=7bd049b7-a303-4e64-885f-a1a71c12f91d&hash=B698685C08AD15D3FD8B1BF2DB28D282"
+          tar -xJf /tmp/gcc.tar.xz -C $ARM_GCC_DIR --strip-components=1
+          echo "$ARM_GCC_DIR/bin" >> "$GITHUB_PATH"
+      - name: Verifiy toolchain
+        run: |
+          set -euo pipefail
+          arm-none-eabi-gcc --version
+
+
+
           
 
 
