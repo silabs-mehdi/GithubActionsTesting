@@ -1,9 +1,11 @@
 name: Silabs GitHub Actions Demo
 run-name: ${{github.actor}} has started a workflow run
+# on:
+#   push:
+#     branches:
+#       - workflow/test
 on:
-  push:
-    branches:
-      - workflow/test
+  workflow_dispatch
 
 jobs:
   Setup-tools-job:
