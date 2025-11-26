@@ -9,14 +9,15 @@ jobs:
   Setup-tools-job:
     env:
       ARM_GCC_DIR: /opt/arm-toolchain
+      SDK_DIR: /opt/sdk
     name: test java setup
     runs-on: ubuntu-24.04 # Runner info https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
     steps:
       - name: Setup java
-        uses: actions/setup-java@v5 # At Least a JRE version 17 is needed to run SLC-CLI (corretto is recommended in docs)
+        uses: actions/setup-java@v5 # At Least a JRE version 21 is needed to run SLC-CLI (corretto is recommended in docs)
         with:
           distribution: 'corretto'
-          java-version: '17'
+          java-version: '21'
       - name: Verify java
         run: |
           set -euo pipefail
@@ -47,7 +48,17 @@ jobs:
         run: |
           set -euo pipefail
           arm-none-eabi-gcc --version
-
+      - name: Download SDK # Currently downloading from Public Git repo (soon to be deprecated site)
+        run: |
+          set -euo pipefail
+          mkdir -p $SDK_DIR
+          curl --location --silent --show-error --output /tmp/sdk.tar.gz "https://github.com/SiliconLabs/simplicity_sdk/archive/refs/tags/v2025.6.2.tar.gz"
+          tar -xzf /tmp/sdk.tar.gz -C $SDK_DIR --strip-components=1
+      - name: SLC-CLI config for SDK and toolchain
+        run: |
+          set -euo pipefail
+          slc signature trust --sdk=$SDK_DIR
+          slc configuration --sdk=$SDK_DIR --gcc-toolchain=$ARM_GCC_DIR
 
 
           
