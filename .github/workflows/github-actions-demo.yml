@@ -25,7 +25,8 @@ jobs:
     env:
       ARM_GCC_DIR: /opt/arm-toolchain
       SDK_DIR: /opt/sdk
-      APPS_DIR: ${{ github.workspace }}/bluetooth_stack_features
+      APPS_TEMPLATE_DIR: ${{ github.workspace }}/bluetooth_stack_features
+      APPS_BUILD_DIR: /opt/output/
     name: test java setup
     runs-on: ubuntu-24.04 # Runner info https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
     steps:
@@ -79,7 +80,16 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: SiliconLabs/bluetooth_stack_features
-          path: ${{env.APPS_DIR}}
+          path: ${{env.APPS_TEMPLATE_DIR}}
+      - name: build one app test
+        run: |
+          set -euo pipefail
+          which cmake
+          slc generate -p $APPS_TEMPLATE_DIR/advertising/advertising_manufacturer_specific_data/SimplicityStudio/soc_advertising_manufacturer_specific_data.slcp -d $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data --with brd4180a --output-type=cmake --new-project 
+          cd $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake
+          cmake --preset project 
+          cmake --build --preset default_config
+          ls $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake/build/default_config
             
 
 
