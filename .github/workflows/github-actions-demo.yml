@@ -90,6 +90,11 @@ jobs:
           cmake --preset project 
           cmake --build --preset default_config
           ls $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake/build/default_config
+      - name: upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: ${{env.APPS_BUILD_DIR}}/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake/build/default_config
             
 
 
