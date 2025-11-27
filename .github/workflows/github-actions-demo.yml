@@ -24,7 +24,7 @@ jobs:
   Setup-tools-job:
     env:
       ARM_GCC_DIR: /opt/arm-toolchain
-      SDK_DIR: /opt/sdk
+      SDK_DIR: /opt/simplicity-sdk
       APPS_TEMPLATE_DIR: ${{ github.workspace }}/bluetooth_stack_features
       APPS_BUILD_DIR: /opt/output/
     name: test java setup
@@ -68,9 +68,9 @@ jobs:
       - name: Download SDK # Currently downloading from Public Git repo (soon to be deprecated site)
         run: |
           set -euo pipefail
-          mkdir -p $SDK_DIR
-          curl --location --silent --show-error --output /tmp/sdk.tar.gz "https://github.com/SiliconLabs/simplicity_sdk/archive/refs/tags/${{inputs.sdk_version}}.tar.gz"
-          tar -xzf /tmp/sdk.tar.gz -C $SDK_DIR --strip-components=1
+          mkdir $SDK_DIR
+          curl --location --silent --show-error --output /tmp/simplicity-sdk.zip "https://github.com/SiliconLabs/simplicity_sdk/releases/download/${{inputs.sdk_version}}/simplicity-sdk.zip"
+          unzip -q -d $SDK_DIR /tmp/simplicity-sdk.zip
       - name: SLC-CLI config for SDK and toolchain
         run: |
           set -euo pipefail
