@@ -19,15 +19,22 @@ on:
           - v2024.12.2
           - v2024.12.1
           - v2024.12.0
+      selected_examples:
+        description: 'selected examples, comma seperated or leave empty to select all'
+        type: string
+      selected_boards:
+        description: 'selected boards, comma seperated or leave empty to select all'
+        type: string
 
 jobs:
-  Setup-tools-job:
+  build_apps:
     env:
       ARM_GCC_DIR: /opt/arm-toolchain
       SDK_DIR: /opt/simplicity-sdk
       APPS_TEMPLATE_DIR: ${{ github.workspace }}/bluetooth_stack_features
-      APPS_BUILD_DIR: /opt/output/
-    name: test java setup
+      CI_PIPELINE_DIR: ${{ github.workspace }}/ci
+      APPS_OUTPUT_DIR: /tmp/output/
+    name: build_apps
     runs-on: ubuntu-24.04 # Runner info https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
     steps:
       - name: Setup java
@@ -76,25 +83,44 @@ jobs:
           set -euo pipefail
           slc signature trust --sdk=$SDK_DIR
           slc configuration --sdk=$SDK_DIR --gcc-toolchain=$ARM_GCC_DIR
-      - name: pulling repo # Currently pulling from Public Git repo (soon to be deprecated site)
+      - name: pulling bluetooth_stack_features repo # Currently pulling from Public Git repo (soon to be deprecated site)
         uses: actions/checkout@v6
         with:
           repository: SiliconLabs/bluetooth_stack_features
           path: ${{env.APPS_TEMPLATE_DIR}}
-      - name: build one app test
+      - name: pulling CI pipeline repo
+        uses: actions/checkout@v6
+        with: 
+          repository: silabs-mehdi/GithubActionsTesting
+          path: ${{env.CI_PIPELINE_DIR}}
+      - name: build apps
         run: |
           set -euo pipefail
-          which cmake
-          slc generate -p $APPS_TEMPLATE_DIR/advertising/advertising_manufacturer_specific_data/SimplicityStudio/soc_advertising_manufacturer_specific_data.slcp -d $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data --with brd4180a --output-type=cmake --new-project 
-          cd $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake
-          cmake --preset project 
-          cmake --build --preset default_config
-          ls $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake/build/default_config
+          mkdir $APPS_OUTPUT_DIR
+          python3 ${{env.CI_PIPELINE_DIR}}/build_sample_app.py ${{env.APPS_TEMPLATE_DIR}} ${{inputs.selected_examples}} ${{inputs.selected_boards}} ${{env.APPS_OUTPUT_DIR}}
+      - name: verify generateion folder
+        run: |
+          set -euo pipefail
+          ls -R ${{env.APPS_OUTPUT_DIR}}
+      # - name: build one app test
+      #   run: |
+      #     set -euo pipefail
+      #     which cmake
+      #     slc generate -p $APPS_TEMPLATE_DIR/advertising/advertising_manufacturer_specific_data/SimplicityStudio/soc_advertising_manufacturer_specific_data.slcp -d $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data --with brd4180a --output-type=cmake --new-project 
+      #     cd $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake
+      #     cmake --preset project 
+      #     cmake --build --preset default_config
+      #     ls $APPS_BUILD_DIR/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake/build/default_config
       - name: upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: binaries
-          path: ${{env.APPS_BUILD_DIR}}/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake/build/default_config
+          name: binaries & logs
+          path: ${{env.APPS_OUTPUT_DIR}}
+      # - name: upload build artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: binaries
+      #     path: ${{env.APPS_BUILD_DIR}}/soc_advertising_manufacturer_specific_data/soc_advertising_manufacturer_specific_data_cmake/build/default_config
             
 
 
