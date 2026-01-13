@@ -86,7 +86,7 @@ jobs:
       - name: pulling bluetooth_stack_features repo # Currently pulling from Public Git repo (soon to be deprecated site)
         uses: actions/checkout@v6
         with:
-          repository: SiliconLabs/bluetooth_stack_features
+          repository: silabs-mehdi/bluetooth_stack_feature_playground
           path: ${{env.APPS_TEMPLATE_DIR}}
       - name: pulling CI pipeline repo
         uses: actions/checkout@v6
