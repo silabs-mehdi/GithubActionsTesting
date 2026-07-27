@@ -83,6 +83,19 @@ def find_cmake_path(project_path: str, project_name: str) -> str:
     raise FileNotFoundError(
         f"No generated CMake directory found. Checked: {', '.join(candidates)}"
     )
+
+def find_build_output_path(cmake_path: str) -> str:
+    """Return the build output directory for current or legacy SLC presets."""
+    candidates = [
+        os.path.join(cmake_path, "build", "base"),
+        os.path.join(cmake_path, "build", "default_config"),
+    ]
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    raise FileNotFoundError(
+        f"No build output directory found. Checked: {', '.join(candidates)}"
+    )
             
 def build_apps(sample_apps: dict, sample_apps_root: str, output_dir: str) -> None: 
     """ Take the parsed XML-content, generate projects, and compile them. Failures are collected using regexes. """
@@ -115,11 +128,18 @@ def build_apps(sample_apps: dict, sample_apps_root: str, output_dir: str) -> Non
             try:
                 cmake_path = find_cmake_path(app_board_specific_path, project_name)
                 compile_project(cmake_path)
-                copytree(cmake_path+'/build/default_config',successful_builds_dir + '/'+ app_name + '/' + project_name)
+                build_output_path = find_build_output_path(cmake_path)
+                copytree(build_output_path, successful_builds_dir + '/'+ app_name + '/' + project_name)
             except subprocess.CalledProcessError as e:
                 app_board_specific_path = failed_builds_dir + '/' + app_name + '/' + project_name
                 handle_build_error(e, app_board_specific_path)
                 print(f"failed to build project {project_name}, details logged at {app_board_specific_path}")
+            except OSError as e:
+                app_board_specific_path = failed_builds_dir + '/' + app_name + '/' + project_name
+                os.makedirs(app_board_specific_path, exist_ok=True)
+                with open(f"{app_board_specific_path}/artifact_error.log", "w") as f:
+                    f.write(str(e))
+                print(f"failed to collect build artifacts for {project_name}, details logged at {app_board_specific_path}")
 
 
 
