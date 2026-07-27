@@ -12,13 +12,16 @@ on:
         required: true
         type: choice
         options: # these options need to match the version substring in the sdk download url
-          - v2025.6.2
-          - v2025.6.1
-          - v2025.6.0
-          - v2024.12.3
-          - v2024.12.2
           - v2024.12.1
-          - v2024.12.0
+          - v2025.6.0
+          - v2025.6.1
+          - v2025.6.2
+          - v2025.6.3
+          - v2025.12.0
+          - v2025.12.1
+          - v2025.12.2
+          - v2025.12.3          
+          - v2026.6.0
       selected_examples:
         description: 'selected examples, comma seperated or leave empty to select all'
         type: string
@@ -30,7 +33,6 @@ jobs:
   build_apps:
     env:
       ARM_GCC_DIR: /opt/arm-toolchain
-      SDK_DIR: /opt/simplicity-sdk
       APPS_TEMPLATE_DIR: ${{ github.workspace }}/bluetooth_stack_features
       CI_PIPELINE_DIR: ${{ github.workspace }}/ci
       APPS_OUTPUT_DIR: /tmp/output/
@@ -49,18 +51,34 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME"
           which java
           readlink -f "$(which java)"
-      - name: Download and install SLC-CLI
+      - name: Setup SLT
+        uses: SiliconLabsSoftware/action-setup-slt@main
+        with:
+          install-conan: true
+          use-unstable: false
+      - name: Install SDK and SLC CLI
         run: |
           set -euo pipefail
-          curl --location --silent --show-error --output /tmp/slc.zip "https://www.silabs.com/documents/public/software/slc_cli_linux.zip"
-          unzip -q -d /opt/ /tmp/slc.zip
-          chmod +x /opt/slc_cli/slc
-          echo "/opt/slc_cli" >> "$GITHUB_PATH"
-      - name: Verify SLC CLI installation
+          SDK_VERSION="${{ inputs.sdk_version }}"
+          SDK_VERSION="${SDK_VERSION#v}"
+
+          slt install "simplicity-sdk/${SDK_VERSION}@silabs"
+          slt install slc-cli
+
+          SDK_DIR="$(slt where "simplicity-sdk/${SDK_VERSION}")"
+          echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
+
+          SLC_DIR="$(slt where slc-cli)"
+          echo "$SLC_DIR" >> "$GITHUB_PATH"
+
+          echo "Installed SDK: $SDK_DIR"
+          echo "Installed SLC: $SLC_DIR"
+      - name: Verify SLT installation
         run: |
           set -euo pipefail
-          which slc
-          echo "SLC CLI version $(slc --version)"
+          slt --version
+          slc --version
+          test -d "$SDK_DIR"
       - name: Install toolchain #Arm GNU Toolchain 12.2.rel1-x86_64-arm-none-eabi
         run: |
           set -euo pipefail
@@ -72,17 +90,11 @@ jobs:
         run: |
           set -euo pipefail
           arm-none-eabi-gcc --version
-      - name: Download SDK # Currently downloading from Public Git repo (soon to be deprecated site)
-        run: |
-          set -euo pipefail
-          mkdir $SDK_DIR
-          curl --location --silent --show-error --output /tmp/simplicity-sdk.zip "https://github.com/SiliconLabs/simplicity_sdk/releases/download/${{inputs.sdk_version}}/simplicity-sdk.zip"
-          unzip -q -d $SDK_DIR /tmp/simplicity-sdk.zip
       - name: SLC-CLI config for SDK and toolchain
         run: |
           set -euo pipefail
-          slc signature trust --sdk=$SDK_DIR
-          slc configuration --sdk=$SDK_DIR --gcc-toolchain=$ARM_GCC_DIR
+          slc signature trust --sdk="$SDK_DIR"
+          slc configuration --sdk="$SDK_DIR" --gcc-toolchain="$ARM_GCC_DIR"
       - name: pulling bluetooth_stack_features repo # Currently pulling from Public Git repo (soon to be deprecated site)
         uses: actions/checkout@v6
         with:
