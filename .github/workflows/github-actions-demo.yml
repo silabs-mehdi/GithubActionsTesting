@@ -1,17 +1,14 @@
-name: Silabs GitHub Actions Demo
-run-name: ${{github.actor}} has started a workflow run
-# on:
-#   push:
-#     branches:
-#       - workflow/test
+name: Silicon Labs GitHub Actions Demo
+run-name: ${{ github.actor }} started a workflow run
+
 on:
   workflow_dispatch:
     inputs:
       sdk_version:
-        description: 'selected sdk'
+        description: Selected SDK
         required: true
         type: choice
-        options: # these options need to match the version substring in the sdk download url
+        options:
           - v2024.12.1
           - v2025.6.0
           - v2025.6.1
@@ -20,13 +17,13 @@ on:
           - v2025.12.0
           - v2025.12.1
           - v2025.12.2
-          - v2025.12.3          
+          - v2025.12.3
           - v2026.6.0
       selected_examples:
-        description: 'selected examples, comma seperated or leave empty to select all'
+        description: Selected examples, comma-separated; empty selects all
         type: string
       selected_boards:
-        description: 'selected boards, comma seperated or leave empty to select all'
+        description: Selected boards, comma-separated; empty selects all
         type: string
 
 jobs:
@@ -34,22 +31,16 @@ jobs:
     env:
       APPS_TEMPLATE_DIR: ${{ github.workspace }}/bluetooth_stack_features
       CI_PIPELINE_DIR: ${{ github.workspace }}/ci
-      APPS_OUTPUT_DIR: /tmp/output/
-    name: build_apps
-    runs-on: ubuntu-24.04 # Runner info https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
+      APPS_OUTPUT_DIR: /tmp/output
+    name: Build applications
+    runs-on: ubuntu-24.04
     steps:
-      - name: Setup java
-        uses: actions/setup-java@v5 # At Least a JRE version 21 is needed to run SLC-CLI (corretto is recommended in docs)
+      - name: Set up Java
+        uses: actions/setup-java@v5
         with:
-          distribution: 'corretto'
-          java-version: '21'
-      - name: Verify java
-        run: |
-          set -euo pipefail
-          java -version
-          echo "JAVA_HOME=$JAVA_HOME"
-          which java
-          readlink -f "$(which java)"
+          distribution: corretto
+          java-version: 21
+
       - name: Setup SLT
         uses: SiliconLabsSoftware/action-setup-slt@main
         with:
@@ -69,29 +60,28 @@ jobs:
           slt install commander
 
           SDK_DIR="$(slt where "simplicity-sdk/${SDK_VERSION}")"
-          echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
-
           SLC_DIR="$(slt where slc-cli)"
-          echo "$SLC_DIR" >> "$GITHUB_PATH"
-
           ARM_GCC_DIR="$(slt where gcc-arm-none-eabi)"
-          echo "ARM_GCC_DIR=$ARM_GCC_DIR" >> "$GITHUB_ENV"
-          echo "$ARM_GCC_DIR/bin" >> "$GITHUB_PATH"
-
           CMAKE_DIR="$(slt where cmake)"
           NINJA_DIR="$(slt where ninja)"
           COMMANDER_DIR="$(slt where commander)"
-          echo "$CMAKE_DIR/bin" >> "$GITHUB_PATH"
-          echo "$NINJA_DIR/bin" >> "$GITHUB_PATH"
-          echo "$COMMANDER_DIR" >> "$GITHUB_PATH"
-          echo "$COMMANDER_DIR/bin" >> "$GITHUB_PATH"
 
-          echo "Installed SDK: $SDK_DIR"
-          echo "Installed SLC: $SLC_DIR"
-          echo "Installed GCC: $ARM_GCC_DIR"
-          echo "Installed CMake: $CMAKE_DIR"
-          echo "Installed Ninja: $NINJA_DIR"
-          echo "Installed Commander: $COMMANDER_DIR"
+          {
+            echo "SDK_DIR=$SDK_DIR"
+            echo "ARM_GCC_DIR=$ARM_GCC_DIR"
+          } >> "$GITHUB_ENV"
+
+          printf '%s\n' \
+            "$SLC_DIR" \
+            "$ARM_GCC_DIR/bin" \
+            "$CMAKE_DIR/bin" \
+            "$NINJA_DIR/bin" \
+            "$COMMANDER_DIR" \
+            "$COMMANDER_DIR/bin" >> "$GITHUB_PATH"
+
+          printf 'Installed SDK: %s\nInstalled SLC: %s\nInstalled GCC: %s\nInstalled CMake: %s\nInstalled Ninja: %s\nInstalled Commander: %s\n' \
+            "$SDK_DIR" "$SLC_DIR" "$ARM_GCC_DIR" "$CMAKE_DIR" "$NINJA_DIR" "$COMMANDER_DIR"
+
       - name: Verify SLT installation
         run: |
           set -euo pipefail
@@ -102,45 +92,44 @@ jobs:
           ninja --version
           slt where commander
           test -d "$SDK_DIR"
-      - name: SLC-CLI config for SDK and toolchain
+
+      - name: Configure SLC
         run: |
           set -euo pipefail
           slc signature trust --sdk="$SDK_DIR"
           slc configuration --sdk="$SDK_DIR" --gcc-toolchain="$ARM_GCC_DIR"
-      - name: pulling bluetooth_stack_features repo # Currently pulling from Public Git repo (soon to be deprecated site)
+
+      - name: Check out Bluetooth stack features
         uses: actions/checkout@v6
         with:
-          repository: SiliconLabs/bluetooth_stack_features
-          path: ${{env.APPS_TEMPLATE_DIR}}
-      - name: pulling CI pipeline repo
+          repository: SiliconLabsSoftware/bluetooth_stack_features
+          path: ${{ env.APPS_TEMPLATE_DIR }}
+
+      - name: Check out CI pipeline
         uses: actions/checkout@v6
-        with: 
-          repository: silabs-mehdi/GithubActionsTesting
-          path: ${{env.CI_PIPELINE_DIR}}
-      - name: build apps
+        with:
+          path: ${{ env.CI_PIPELINE_DIR }}
+
+      - name: Build applications
         run: |
           set -euo pipefail
-          mkdir $APPS_OUTPUT_DIR
-          python3 ${{env.CI_PIPELINE_DIR}}/build_sample_app.py ${{env.APPS_TEMPLATE_DIR}} ${{inputs.selected_examples}} ${{inputs.selected_boards}} ${{env.APPS_OUTPUT_DIR}}
-      - name: verify generateion folder
-        if: ${{ always() }}
+          mkdir -p "$APPS_OUTPUT_DIR"
+          python3 "$CI_PIPELINE_DIR/build_sample_app.py" \
+            "$APPS_TEMPLATE_DIR" \
+            "${{ inputs.selected_examples }}" \
+            "${{ inputs.selected_boards }}" \
+            "$APPS_OUTPUT_DIR"
+
+      - name: List build results
+        if: always()
         run: |
           set -euo pipefail
-          ls -R ${{env.APPS_OUTPUT_DIR}}
-      - name: upload build artifacts
-        if: ${{ always() }}
+          find "$APPS_OUTPUT_DIR" -maxdepth 5 -type f -print
+
+      - name: Upload build artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: binaries & logs
-          path: ${{env.APPS_OUTPUT_DIR}}
-
-            
-
-
-
-
-          
-
-
-
+          path: ${{ env.APPS_OUTPUT_DIR }}
 
