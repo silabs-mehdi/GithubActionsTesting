@@ -56,7 +56,7 @@ def handle_build_error(e: subprocess.CalledProcessError, project_name: str) -> N
 
 def compile_project(cmake_path:str):
     """ Compile the project using make. """
-    project_name = cmake_path.split('/')[-1].strip('_cmake')
+    project_name = os.path.basename(os.path.dirname(cmake_path))
     print(f"Building {project_name}...")
     with(chdir(cmake_path)):
         try:
@@ -67,6 +67,19 @@ def compile_project(cmake_path:str):
                         )            
         except subprocess.CalledProcessError:
             raise
+
+def find_cmake_path(project_path: str, project_name: str) -> str:
+    """Return the generated CMake directory for current or legacy SLC layouts."""
+    candidates = [
+        os.path.join(project_path, "cmake_gcc"),
+        os.path.join(project_path, project_name + "_cmake"),
+    ]
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    raise FileNotFoundError(
+        f"No generated CMake directory found. Checked: {', '.join(candidates)}"
+    )
             
 def build_apps(sample_apps: dict, sample_apps_root: str, output_dir: str) -> None: 
     """ Take the parsed XML-content, generate projects, and compile them. Failures are collected using regexes. """
@@ -97,7 +110,7 @@ def build_apps(sample_apps: dict, sample_apps_root: str, output_dir: str) -> Non
                 continue
             #generation succeeded, proceeed to build
             try:
-                cmake_path = app_board_specific_path + '/' + project_name + '_cmake'
+                cmake_path = find_cmake_path(app_board_specific_path, project_name)
                 compile_project(cmake_path)
                 copytree(cmake_path+'/build/default_config',successful_builds_dir + '/'+ app_name + '/' + project_name)
             except subprocess.CalledProcessError as e:
