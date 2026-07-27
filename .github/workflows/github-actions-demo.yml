@@ -32,7 +32,6 @@ on:
 jobs:
   build_apps:
     env:
-      ARM_GCC_DIR: /opt/arm-toolchain
       APPS_TEMPLATE_DIR: ${{ github.workspace }}/bluetooth_stack_features
       CI_PIPELINE_DIR: ${{ github.workspace }}/ci
       APPS_OUTPUT_DIR: /tmp/output/
@@ -56,7 +55,7 @@ jobs:
         with:
           install-conan: true
           use-unstable: false
-      - name: Install SDK and SLC CLI
+      - name: Install SDK and build tools
         run: |
           set -euo pipefail
           SDK_VERSION="${{ inputs.sdk_version }}"
@@ -64,6 +63,9 @@ jobs:
 
           slt install "simplicity-sdk/${SDK_VERSION}@silabs"
           slt install slc-cli
+          slt install gcc-arm-none-eabi
+          slt install cmake
+          slt install ninja
 
           SDK_DIR="$(slt where "simplicity-sdk/${SDK_VERSION}")"
           echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
@@ -71,25 +73,29 @@ jobs:
           SLC_DIR="$(slt where slc-cli)"
           echo "$SLC_DIR" >> "$GITHUB_PATH"
 
+          ARM_GCC_DIR="$(slt where gcc-arm-none-eabi)"
+          echo "ARM_GCC_DIR=$ARM_GCC_DIR" >> "$GITHUB_ENV"
+          echo "$ARM_GCC_DIR/bin" >> "$GITHUB_PATH"
+
+          CMAKE_DIR="$(slt where cmake)"
+          NINJA_DIR="$(slt where ninja)"
+          echo "$CMAKE_DIR/bin" >> "$GITHUB_PATH"
+          echo "$NINJA_DIR/bin" >> "$GITHUB_PATH"
+
           echo "Installed SDK: $SDK_DIR"
           echo "Installed SLC: $SLC_DIR"
+          echo "Installed GCC: $ARM_GCC_DIR"
+          echo "Installed CMake: $CMAKE_DIR"
+          echo "Installed Ninja: $NINJA_DIR"
       - name: Verify SLT installation
         run: |
           set -euo pipefail
           slt --version
           slc --version
-          test -d "$SDK_DIR"
-      - name: Install toolchain #Arm GNU Toolchain 12.2.rel1-x86_64-arm-none-eabi
-        run: |
-          set -euo pipefail
-          mkdir -p $ARM_GCC_DIR
-          curl --location --silent --show-error --output /tmp/gcc.tar.xz "https://developer.arm.com/-/media/files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz?rev=7bd049b7a3034e64885fa1a71c12f91d&revision=7bd049b7-a303-4e64-885f-a1a71c12f91d&hash=B698685C08AD15D3FD8B1BF2DB28D282"
-          tar -xJf /tmp/gcc.tar.xz -C $ARM_GCC_DIR --strip-components=1
-          echo "$ARM_GCC_DIR/bin" >> "$GITHUB_PATH"
-      - name: Verifiy toolchain
-        run: |
-          set -euo pipefail
           arm-none-eabi-gcc --version
+          cmake --version
+          ninja --version
+          test -d "$SDK_DIR"
       - name: SLC-CLI config for SDK and toolchain
         run: |
           set -euo pipefail
@@ -111,10 +117,12 @@ jobs:
           mkdir $APPS_OUTPUT_DIR
           python3 ${{env.CI_PIPELINE_DIR}}/build_sample_app.py ${{env.APPS_TEMPLATE_DIR}} ${{inputs.selected_examples}} ${{inputs.selected_boards}} ${{env.APPS_OUTPUT_DIR}}
       - name: verify generateion folder
+        if: ${{ always() }}
         run: |
           set -euo pipefail
           ls -R ${{env.APPS_OUTPUT_DIR}}
       - name: upload build artifacts
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: binaries & logs

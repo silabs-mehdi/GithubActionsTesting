@@ -52,7 +52,10 @@ def handle_generation_error(e: subprocess.CalledProcessError, project_path: str)
 def handle_build_error(e: subprocess.CalledProcessError, project_name: str) -> None:
     os.makedirs(project_name)
     with open(f"{project_name}/build_error.log", "w") as f:
-        f.write(e.stdout)
+        f.write("STDOUT:\n")
+        f.write(e.stdout or "")
+        f.write("\n\nSTDERR:\n")
+        f.write(e.stderr or "")
 
 def compile_project(cmake_path:str):
     """ Compile the project using make. """
