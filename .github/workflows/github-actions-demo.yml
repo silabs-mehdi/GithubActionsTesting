@@ -66,6 +66,7 @@ jobs:
           slt install gcc-arm-none-eabi
           slt install cmake
           slt install ninja
+          slt install commander
 
           SDK_DIR="$(slt where "simplicity-sdk/${SDK_VERSION}")"
           echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
@@ -79,14 +80,18 @@ jobs:
 
           CMAKE_DIR="$(slt where cmake)"
           NINJA_DIR="$(slt where ninja)"
+          COMMANDER_DIR="$(slt where commander)"
           echo "$CMAKE_DIR/bin" >> "$GITHUB_PATH"
           echo "$NINJA_DIR/bin" >> "$GITHUB_PATH"
+          echo "$COMMANDER_DIR" >> "$GITHUB_PATH"
+          echo "$COMMANDER_DIR/bin" >> "$GITHUB_PATH"
 
           echo "Installed SDK: $SDK_DIR"
           echo "Installed SLC: $SLC_DIR"
           echo "Installed GCC: $ARM_GCC_DIR"
           echo "Installed CMake: $CMAKE_DIR"
           echo "Installed Ninja: $NINJA_DIR"
+          echo "Installed Commander: $COMMANDER_DIR"
       - name: Verify SLT installation
         run: |
           set -euo pipefail
@@ -95,6 +100,7 @@ jobs:
           arm-none-eabi-gcc --version
           cmake --version
           ninja --version
+          slt where commander
           test -d "$SDK_DIR"
       - name: SLC-CLI config for SDK and toolchain
         run: |
