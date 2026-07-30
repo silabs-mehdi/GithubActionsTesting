@@ -29,9 +29,9 @@ on:
 jobs:
   build_apps:
     env:
-      APPS_TEMPLATE_DIR: ${{ github.workspace }}/bluetooth_stack_features
-      CI_PIPELINE_DIR: ${{ github.workspace }}/ci
-      APPS_OUTPUT_DIR: /tmp/output
+        APPS_TEMPLATE_DIR: bluetooth_stack_features
+        CI_PIPELINE_DIR: ci
+        APPS_OUTPUT_DIR: /tmp/output
     name: Build applications
     runs-on: ubuntu-24.04
     steps:
@@ -46,9 +46,11 @@ jobs:
         with:
           install-conan: true
           use-unstable: false
+
       - name: Install SDK and build tools
         run: |
           set -euo pipefail
+
           SDK_VERSION="${{ inputs.sdk_version }}"
           SDK_VERSION="${SDK_VERSION#v}"
 
@@ -63,24 +65,46 @@ jobs:
           SLC_DIR="$(slt where slc-cli)"
           ARM_GCC_DIR="$(slt where gcc-arm-none-eabi)"
           CMAKE_DIR="$(slt where cmake)"
-          NINJA_DIR="$(slt where ninja)"
+          NINJA_ROOT="$(slt where ninja)"
           COMMANDER_DIR="$(slt where commander)"
+
+          NINJA_EXECUTABLE="$(
+            find "$NINJA_ROOT" -type f \
+              \( -name ninja -o -name ninja-build \) \
+              -perm /111 \
+              -print \
+              -quit
+          )"
+
+          if [ -z "$NINJA_EXECUTABLE" ]; then
+            echo "::error::Ninja executable not found under $NINJA_ROOT"
+            find "$NINJA_ROOT" -maxdepth 5 -type f -print
+            exit 1
+          fi
+
+          NINJA_BIN_DIR="$(dirname "$NINJA_EXECUTABLE")"
 
           {
             echo "SDK_DIR=$SDK_DIR"
             echo "ARM_GCC_DIR=$ARM_GCC_DIR"
+            echo "NINJA_EXECUTABLE=$NINJA_EXECUTABLE"
           } >> "$GITHUB_ENV"
 
           printf '%s\n' \
             "$SLC_DIR" \
             "$ARM_GCC_DIR/bin" \
             "$CMAKE_DIR/bin" \
-            "$NINJA_DIR/bin" \
+            "$NINJA_BIN_DIR" \
             "$COMMANDER_DIR" \
             "$COMMANDER_DIR/bin" >> "$GITHUB_PATH"
 
-          printf 'Installed SDK: %s\nInstalled SLC: %s\nInstalled GCC: %s\nInstalled CMake: %s\nInstalled Ninja: %s\nInstalled Commander: %s\n' \
-            "$SDK_DIR" "$SLC_DIR" "$ARM_GCC_DIR" "$CMAKE_DIR" "$NINJA_DIR" "$COMMANDER_DIR"
+          printf '%s\n' \
+            "Installed SDK: $SDK_DIR" \
+            "Installed SLC: $SLC_DIR" \
+            "Installed GCC: $ARM_GCC_DIR" \
+            "Installed CMake: $CMAKE_DIR" \
+            "Installed Ninja: $NINJA_EXECUTABLE" \
+            "Installed Commander: $COMMANDER_DIR"
 
       - name: Verify SLT installation
         run: |
